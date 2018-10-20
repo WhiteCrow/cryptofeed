@@ -9,7 +9,7 @@ import json
 import logging
 from decimal import Decimal
 from collections import defaultdict
-from datetime import datetime as dt
+import datetime as dt
 
 import requests
 from sortedcontainers import SortedDict as sd
@@ -23,10 +23,13 @@ LOG = logging.getLogger('feedhandler')
 
 class Gateio(Feed):
     id = GATEIO
-    api = 'wss://ws.gateio.io/v3/'
 
     def __init__(self, pairs=None, channels=None, callbacks=None, **kwargs):
-        super().__init__('api', pairs=pairs, channels=channels, callbacks=callbacks, **kwargs)
+        api = 'wss://ws.gateio.io/v3/'
+        super().__init__(api, pairs=pairs, channels=channels, callbacks=callbacks, **kwargs)
+        # self.pairs = pairs
+        # self.channels = channels
+        # self.callbacks = callbacks
         self.pairs = pairs
         self.__reset()
 
@@ -36,8 +39,10 @@ class Gateio(Feed):
 
     async def subscribe(self, websocket):
         for channel in self.channels:
-            await websocket.send(json.dumps({"id": 'subscribe_gateio_' + str(dt.datetime.now()),
-                                             "method": channel}))
+            now = dt.datetime.now()
+            msg_id = now.year + now.month + now.day + now.hour + now.minute + now.second + now.microsecond
+            msg = json.dumps({"id": msg_id, "method":"depth.subscribe", "params": self.pairs + [5, "0.0001"]})
+            await websocket.send(msg)
 
     # TODO
     async def _ticker(self, msg):
@@ -87,17 +92,30 @@ class Gateio(Feed):
             "id": null
         }
         """
-        timestamp = dt.utcnow()
+        timestamp = dt.datetime.utcnow()
         timestamp = timestamp.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
         pair = msg['params'][-1]
+        self.l2_book[pair] = {}
+        '''
         self.l2_book[pair] = {
             BID: sd({
                 Decimal(price): Decimal(amount)
-                for price, amount in msg['bids']
+                for price, amount in msg['params']['bids']
             }),
             ASK: sd({
                 Decimal(price): Decimal(amount)
-                for price, amount in msg['asks']
+                for price, amount in msg['params']['asks']
             })
         }
+        '''
         await self.callbacks[L2_BOOK](feed=self.id, pair=pair, book=self.l2_book[pair], timestamp=timestamp)
+
+    async def message_handler(self, msg):
+        msg = json.loads(msg, parse_float=Decimal)
+        if msg.get("method") == "depth.update":
+            LOG.warning(msg)
+            # await self._l2_book(msg)
+        else:
+            LOG.warning("%s: Invalid message type %s", self.id, msg)
+
+

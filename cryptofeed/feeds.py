@@ -6,7 +6,7 @@ associated with this software.
 '''
 import logging
 
-from cryptofeed.exchanges import BITFINEX, POLONIEX, HITBTC, BITSTAMP, COINBASE, BITMEX
+from cryptofeed.exchanges import *
 from cryptofeed.defines import L2_BOOK, L3_BOOK, TRADES, TICKER, VOLUME, FUNDING, UNSUPPORTED
 from cryptofeed.standards import pair_std_to_exchange
 
@@ -21,7 +21,8 @@ _feed_to_exchange_map = {
         HITBTC: 'subscribeOrderbook',
         COINBASE: 'level2',
         BITMEX: 'orderBook10',
-        BITSTAMP: 'order_book'
+        BITSTAMP: 'order_book',
+        GATEIO: 'depth'
     },
     L3_BOOK: {
         BITFINEX: 'book-R0-F0-100',
